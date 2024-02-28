@@ -1,0 +1,19 @@
+{
+  "name": "new-folder",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "main.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@apollo/client": "^3.9.5",
+    "csv-writer": "^1.6.0",
+    "graphql-request": "^6.1.0",
+    "react": "^18.2.0",
+    "suijs": "^1.0.0",
+    "web3": "^4.5.0"
+  }
+}
