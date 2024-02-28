@@ -33,22 +33,25 @@ function compare(a, b) {
 }
 
 async function getDelegatorRewards() {
-  const endpoint = "https://sui-testnet.mystenlabs.com/graphql";
+  const endpoint = "https://sui-mainnet.mystenlabs.com/graphql";
 
   const query = gql`
   query {
-    delegatorInfo(address: "0x123456789abcdef") {
-      balance
-      
+    events(first:10 filter: {sender:"0x571bad7fd728af0fb5589888e8124214467ae3ba7947cff39dea9d0638e5979a"}) {
+      nodes {
+          json
+          timestamp
+      }
     }
   }
+  
   `;
 
   const variables = {
     epochID: 100,
   };
   const response = await request(endpoint, query);
-  console.log(response);
+  console.log(response.events.nodes);
 
   // const data = {
   //   jsonrpc: "2.0",
