@@ -11,30 +11,41 @@ const delegator =
   "0x571bad7fd728af0fb5589888e8124214467ae3ba7947cff39dea9d0638e5979a";
 
 // Define the CSV file path and header
+// const csvWriter = createCsvWriter({
+//   path: "delegator_rewards.csv",
+//   header: [
+//     { id: "address", title: "Address" },
+//     { id: "validator", title: "Validator" },
+//     { id: "startepoch", title: "Start Epoch" },
+//     { id: "endepoch", title: "End Epoch" },
+//     { id: "suiEarned", title: "SUI Earned" },
+//     { id: "suiLocked", title: "SUI Locked" },
+//   ],
+// });
+// const csvWriter1 = createCsvWriter({
+//   path: "validator_rewords.csv",
+//   header: [
+//     { id: "address", title: "Address" },
+//     { id: "name", title: "Name" },
+//     { id: "stakingPoolActivationEpoch", title: "stakingPoolActivationEpoch" },
+//     { id: "stakingPoolSuiBalance", title: "stakingPoolSuiBalance" },
+//     { id: "rewardsPool", title: "rewardsPool" },
+//     { id: "votingPower", title: "votingPower" },
+//     { id: "commissionRate", title: "commissionRate" },
+//     { id: "exchangeRatesSize", title: "exchangeRatesSize" },
+//     { id: "totalStakeRewards", title: "totalStakeRewards" },
+//     { id: "totalStake", title: "totalStake" },
+//   ],
+// });
 const csvWriter = createCsvWriter({
   path: "delegator_rewards.csv",
   header: [
-    { id: "address", title: "Address" },
     { id: "validator", title: "Validator" },
-    { id: "startepoch", title: "Start Epoch" },
-    { id: "endepoch", title: "End Epoch" },
-    { id: "suiEarned", title: "SUI Earned" },
-    { id: "suiLocked", title: "SUI Locked" },
+    { id: "epoch", title: "epoch" },
+    { id: "earned", title: "earned" },
   ],
 });
-const csvWriter1 = createCsvWriter({
-  path: "validator_rewords.csv",
-  header: [
-    { id: "address", title: "Address" },
-    { id: "name", title: "Name" },
-    { id: "stakingPoolActivationEpoch", title: "stakingPoolActivationEpoch" },
-    { id: "stakingPoolSuiBalance", title: "stakingPoolSuiBalance" },
-    { id: "rewardsPool", title: "rewardsPool" },
-    { id: "votingPower", title: "votingPower" },
-    { id: "commissionRate", title: "commissionRate" },
-    { id: "exchangeRatesSize", title: "exchangeRatesSize" },
-  ],
-});
+
 
 function compare(a, b) {
   if (a.validator < b.validator) {
@@ -49,22 +60,76 @@ function compare(a, b) {
 async function getDelegatorRewards() {
   const endpoint = "https://sui-mainnet.mystenlabs.com/graphql";
 
-  // const query = gql`
-  // query Getnodes($after: String){
-  //   events( after: $after filter: {sender:"0x571bad7fd728af0fb5589888e8124214467ae3ba7947cff39dea9d0638e5979a"}) {
-  //     pageInfo {
-  //       startCursor
-  //       endCursor
-  //       hasNextPage
-  //       hasPreviousPage
-  //     }
-  //     nodes {
-  //         json
-  //         timestamp
+  const query = gql`
+  query Getnodes($after: String){
+    events( after: $after filter: {sender:"0x571bad7fd728af0fb5589888e8124214467ae3ba7947cff39dea9d0638e5979a"}) {
+      pageInfo {
+        startCursor
+        endCursor
+        hasNextPage
+        hasPreviousPage
+      }
+      nodes {
+          json
+          timestamp
+      }
+    }
+  } 
+  `;
+  //   const query1 = gql`
+  //   query getnode($after: String, $id: Int) 
+  //   {
+  //     epoch(id:$id){
+  //       totalStakeRewards
+  //     validatorSet{
+  //       activeValidators(after: $after) {
+  //         pageInfo {
+  //           endCursor
+  //           hasNextPage
+  //         }
+  //         nodes {
+  //           address {
+  //             address
+  //           }
+  //           name
+  //           stakingPoolActivationEpoch
+  //           stakingPoolSuiBalance
+  //           rewardsPool
+  //           votingPower
+  //           commissionRate
+  //           exchangeRatesSize
+  //         }
+  //       }
   //     }
   //   }
-  // } 
-  // `;
+  // }
+  //   `;
+  const query1 = gql`
+  query getnode($after: String, $id: Int) 
+  {
+    epoch(id:$id){
+      totalStakeRewards
+    validatorSet{
+      activeValidators(after: $after) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        nodes {
+          address {
+            address
+          }
+          stakingPoolActivationEpoch
+          stakingPoolSuiBalance
+          rewardsPool
+          votingPower
+          commissionRate
+        }
+      }
+    }
+  }
+}
+  `;
 
   // const nodes = [];
   // const records = [];
@@ -89,8 +154,8 @@ async function getDelegatorRewards() {
   //       const record = {
   //         address: result.json.staker_address,
   //         validator: result.json.validator_address,
-  //         startepoch: result.json.stake_activation_epoch,
-  //         endepoch: result.json.unstaking_epoch,
+  //         startepoch: Number(result.json.stake_activation_epoch),
+  //         endepoch: Number(result.json.unstaking_epoch),
   //         suiEarned: Number(result.json.reward_amount) / 10 ** 9,
   //         suiLocked: Number(result.json.principal_amount) / 10 ** 9,
   //       }
@@ -100,72 +165,32 @@ async function getDelegatorRewards() {
   //       const record = {
   //         address: result.json.staker_address,
   //         validator: result.json.validator_address,
-  //         startepoch: result.json.epoch,
+  //         startepoch: Number(result.json.epoch),
   //         endepoch: "-",
   //         suiEarned: "-",
   //         suiLocked: Number(result.json.amount) / 10 ** 9,
   //       }
   //       records.push(record)
-  //       console.log(records);
   //     }
   //   })
   //   records.sort(compare);
-
-  //   csvWriter.writeRecords(records);
+  //   console.log(records)
+  //   // csvWriter.writeRecords(records);
   // })();
 
-
-  // return records;
-
-
-
-  const query = gql`
-  query getnode($after: String, $id: Int) 
-  {
-    epoch(id:$id){
-    validatorSet{
-      activeValidators(after: $after) {
-        pageInfo {
-          endCursor
-          hasNextPage
-        }
-        nodes {
-          address {
-            address
-          }
-          name
-          stakingPoolActivationEpoch
-          stakingPoolSuiBalance
-          rewardsPool
-          votingPower
-          commissionRate
-          exchangeRatesSize
-        }
-      }
-    }
-  }
-}
-
-
-  `;
-
-  const nodes = [];
+  const nodess = [];
 
   async function getAddressInfo(address, after, id) {
-    console.log(id)
-    if (id == 10) {
-      return nodes;
-    }
-    const response = await request(endpoint, query, { after, id });
-    const activeValidators = response.epoch.validatorSet.activeValidators.nodes;
-    const specificValidator = activeValidators.find(
+    const response = await request(endpoint, query1, { after, id });
+    const activeValidators = response.epoch;
+    const specificValidator = activeValidators.validatorSet.activeValidators.nodes.find(
       (validator) => validator.address.address === address
     );
     if (specificValidator) {
       // Do something with the validator object that has the specific address
-      console.log(specificValidator);
+      specificValidator.totalStakeRewards = response.epoch.totalStakeRewards;
       //nodes.push(specificValidator)
-      nodes[id] = specificValidator;
+      nodess[id] = specificValidator;
     }
     //if (id < 10) {
     if (response.epoch.validatorSet.activeValidators.pageInfo.hasNextPage && !specificValidator) {
@@ -179,19 +204,75 @@ async function getDelegatorRewards() {
   }
   const batchsize = 3;
   let id = 0;
-  while (id < 300) {
+  while (id < 140) {
     const batch = [];
-    for (let i = 0; i < batchsize && id < 300; i++) {
+    for (let i = 0; i < batchsize && id < 140; i++) {
       batch.push({ after: null, id });
       id++;
     }
     await Promise.all(batch.map(args => getAddressInfo(
-      "0xf7abab51fdf9b4626ce706a5dfbb3da13a715700149bc816dfbee2ae73d61be5",
+      "0xefa5f0435f230579dc95f219a1a8929f91b98cba727d7c1de8b10738be431ade",
       null,
       args.id
     ).then(() => { })))
   }
-  console.log(nodes);
+
+  const recordss = [];
+  (async () => {
+    nodess.map((result) => {
+      const record = {
+        address: result.address.address,
+        // name: result.name,
+        stakingPoolActivationEpoch: result.stakingPoolActivationEpoch,
+        stakingPoolSuiBalance: Number(result.stakingPoolSuiBalance) / 10 ** 9,
+        rewardsPool: Number(result.rewardsPool) / 10 ** 9,
+        votingPower: Number(result.votingPower) / 10000,
+        commissionRate: Number(result.commissionRate) / 10000,
+        // exchangeRatesSize: result.exchangeRatesSize,
+        totalStakeRewards: Number(result.totalStakeRewards) / 10 ** 9,
+        totalStake: (Number(result.stakingPoolSuiBalance) / 10 ** 9) / (Number(result.votingPower) / 10000),
+      }
+      recordss.push(record)
+    })
+    csvWriter.writeRecords(recordss);
+
+  })();
+
+  const epoch_values = [];
+  (async () => {
+    recordss.map((result) => {
+      const epoch_value = (1 - result.commissionRate) * result.totalStakeRewards / result.totalStake;
+      epoch_values.push(epoch_value)
+    })
+    console.log(epoch_values)
+  })();
+
+  const rewards = [];
+
+  function get_reward(stake, start, end) {
+    let reward = stake * epoch_values[start + end];
+    console.log(epoch_values[start + end], "sssssssss")
+    for (let i = start; i < start + end; i++) {
+      reward = reward * (1 + epoch_values[i])
+      console.log(epoch_values[i])
+    }
+    return reward;
+  }
+
+  (async () => {
+    for (let i = 1; i < epoch_values.length; i++) {
+      console.log(get_reward(2400000, 0, i), "@@@")
+      const record = {
+        validator: "0xefa5f0435f230579dc95f219a1a8929f91b98cba727d7c1de8b10738be431ade",
+        epoch: i,
+        earned: Number(get_reward(2400000, 0, i)),
+      }
+      rewards.push(record)
+      // console.log(get_reward(300000000, i, epoch_values.length))
+    }
+    await csvWriter.writeRecords(rewards);
+    // console.log(rewards)
+  })();
 }
 
 // Define an async function to write the CSV file
@@ -206,69 +287,3 @@ async function writeCSV() {
 
 // Call the writeCSV function
 writeCSV();
-
-
-
-
-
-
-
-
-
-
-
-
-
-// nodes.map((node) => {
-//   const record = {
-//     address: delegator,
-//     validator: result.validatorAddress,
-//     epoch: result.stakes[0].stakeActiveEpoch,
-//     suiEarned: Number(result.stakes[0].estimatedReward) / 10 ** 9,
-//     suiLocked: Number(result.stakes[0].principal) / 10 ** 9,
-//   };
-//   records.push(record);
-//   console.log(records);
-// });
-
-// const response = await request(endpoint, query);
-// console.log(response.events.nodes);
-
-
-
-// const data = {
-//   jsonrpc: "2.0",
-//   id: 1,
-//   method: "suix_getStakes",
-//   params: [
-//     "0x571bad7fd728af0fb5589888e8124214467ae3ba7947cff39dea9d0638e5979a",
-//   ],
-// };
-
-// const records = [];
-// const result = await new Promise((resolve, reject) => {
-//   web3.currentProvider.send(data, (error, result) => {
-//     if (error) {
-//       console.error(error);
-//       reject(error);
-//     } else {
-//       // console.log(result);
-//       result.result.map((result) => {
-//         const record = {
-//           address: delegator,
-//           validator: result.validatorAddress,
-//           epoch: result.stakes[0].stakeActiveEpoch,
-//           suiEarned: Number(result.stakes[0].estimatedReward) / 10 ** 9,
-//           suiLocked: Number(result.stakes[0].principal) / 10 ** 9,
-//         };
-//         records.push(record);
-//         console.log(records);
-//       });
-//       resolve(result);
-//     }
-//   });
-// });
-
-// records.sort(compare);
-
-// return records;
