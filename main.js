@@ -24,15 +24,6 @@ const csvWriter1 = createCsvWriter({
   ],
 });
 
-const csvWriter2 = createCsvWriter({
-  path: "delegator_rewards.csv",
-  header: [
-    { id: "validator", title: "Validator" },
-    { id: "epoch", title: "epoch" },
-    { id: "earned", title: "earned" },
-  ],
-});
-
 function compare(a, b) {
   if (a.validator < b.validator) {
     return -1;
@@ -58,14 +49,11 @@ const query = gql`
   query Getnodes($after: String){
     events( after: $after filter: {sender:"0x571bad7fd728af0fb5589888e8124214467ae3ba7947cff39dea9d0638e5979a"}) {
       pageInfo {
-        startCursor
         endCursor
         hasNextPage
-        hasPreviousPage
       }
       nodes {
           json
-          timestamp
       }
     }
   } 
@@ -87,9 +75,6 @@ const query1 = gql`
             address {
               address
             }
-            stakingPoolActivationEpoch
-            stakingPoolSuiBalance
-            rewardsPool
             votingPower
             commissionRate
           }
@@ -142,12 +127,23 @@ async function getDelegatorRewards() {
 }
 
 //Get Reward
-async function getreward() {
+async function getreward(i) {
+  const validator = records[i].validator;
+  const csvWriter2 = createCsvWriter({
+    path: "validator("+ validator + i + ").csv",
+    header: [
+      { id: "validator", title: "Validator" },
+      { id: "epoch", title: "epoch" },
+      { id: "earned", title: "earned" },
+      { id: "active", title: "active" },
+    ],
+  });
+
   const epoch = await request(endpoint, epoch_now);
   current_epoch = epoch.epoch.epochId - 1;
 
-  console.log(records[10]);
-  // console.log(records[10])
+  console.log(records[i]);
+  // console.log(records[i])
   const nodess = [];
 
   async function getAddressInfo(address, after, id) {
@@ -160,9 +156,11 @@ async function getreward() {
       // Do something with the validator object that has the specific address
       specificValidator.totalStakeRewards = response.epoch.totalStakeRewards;
       specificValidator.totalStake = response.epoch.validatorSet.totalStake;
+      specificValidator.id = id;
+      specificValidator.active = "active";
       //nodes.push(specificValidator)
       nodess[id] = specificValidator;
-      console.log(id)
+      // console.log("active validator", id)
     }
 
     if (response.epoch.validatorSet.activeValidators.pageInfo.hasNextPage && !specificValidator) {
@@ -174,18 +172,18 @@ async function getreward() {
   }
 
   const batchsize = 3;
-  let id = records[10].startepoch;
+  let id = records[i].startepoch;
   let endepoch;
-  records[10].endepoch == "-" ? endepoch = current_epoch : endepoch = records[10].endepoch;
+  records[i].endepoch == "-" ? endepoch = current_epoch : endepoch = records[i].endepoch;
   // console.log(endepoch)
   while (id <= endepoch) {
     const batch = [];
-    for (let i = 0;  i < batchsize && id <= endepoch; i++) {
+    for (let i = 0; i < batchsize && id <= endepoch; i++) {
       batch.push({ after: null, id });
       id++;
     }
     await Promise.all(batch.map(args => getAddressInfo(
-      records[10].validator,
+      records[i].validator,
       null,
       args.id
     ).then(() => { })))
@@ -202,7 +200,9 @@ async function getreward() {
         votingPower: Number(result.votingPower) / 10000,
         commissionRate: Number(result.commissionRate) / 10000,
         totalStakeRewards: Number(result.totalStakeRewards) / 10 ** 9,
-        totalStake: (Number(result.totalStake) / 10 ** 9) 
+        totalStake: (Number(result.totalStake) / 10 ** 9),
+        active: result.active,
+        id: result.id
       }
       recordss.push(record)
       console.log(record)
@@ -230,15 +230,27 @@ async function getreward() {
 
   console.log("Start");
   (async () => {
-    for (let i = 0; i < epoch_values.length; i++) {
-      const record = {
-        validator: records[10].validator,
-        epoch: records[10].startepoch + i,
-        earned: Number(get_reward(records[10].suiLocked, i)),
+    // for (let i = 0; i < epoch_values.length; i++) {
+    //   const record = {
+    //     validator: records[i].validator,
+    //     epoch: records[i].startepoch + i,
+    //     earned: Number(get_reward(records[i].suiLocked, i)),
+    //     // id: records[i].id,
+    //     // active: record[10].active
+    //   }
+    //   rewards.push(record)
+    //   console.log(rewards)
+    // }
+    recordss.map((record, index) => {
+      const re = {
+        validator: record.address,
+        epoch: record.id,
+        earned: Number(get_reward(records[i].suiLocked, index)),
+        active: record.active
       }
-      rewards.push(record)
+      rewards.push(re)
       console.log(rewards)
-    }
+    })
     await csvWriter2.writeRecords(rewards);
   })();
   console.log("End")
@@ -249,7 +261,10 @@ async function writeCSV() {
   console.log("Writing CSV file...");
   await csvWriter1.writeRecords(await getDelegatorRewards());
   console.log("CSV file (Get Total Reward) written successfully");
-  await getreward();
+  for(let i = 4; i < records.length; i++){
+    await getreward(i);
+  }
+  
 }
 
 // Call the writeCSV function
