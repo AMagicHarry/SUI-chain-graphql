@@ -129,17 +129,10 @@ async function getAddressInfo(address, after, id) {
   }
 }
 //Calculate each epoch reward from total reward 
-function get_reward(stake, end, values) {
-  console.log(values)
-  let reward = stake * values[end];
-  for (let i = 1; i < end; i++) {
-    reward = reward * (1 + values[i])
-  }
-  return reward;
-}
+
 //Speed up when fetch
 async function parallel_fetch(index) {
-  const batchsize = 3;
+  const batchsize = 1;
   let id = records[index].startepoch;
   let endepoch;
   records[index].endepoch == "-" ? endepoch = current_epoch : endepoch = records[index].endepoch;
@@ -158,12 +151,21 @@ async function parallel_fetch(index) {
   }
 }
 
+function get_reward_func(stake, end, value) {
+  let reward = stake * value[end];
+  for (let i = 1; i < end; i++) {
+    reward = reward * (1 + value[i])
+  }
+  return reward;
+}
+
 //Get Reward
 async function getreward(v_index) {
   const epoch_values = [];
   const validator = records[v_index].validator;
   const epoch = await request(endpoint, epoch_now);
   current_epoch = epoch.epoch.epochId - 1;
+  const specific_data = [];
   const rewards = [];
 
   const csvWriter_validator = createCsvWriter({
@@ -180,25 +182,37 @@ async function getreward(v_index) {
   await parallel_fetch(v_index);
 
   (async () => {
-    validators_info.map((validator, index) => {
+    validators_info.map((result) => {
       const record = {
-        address: validator.address.address,
-        votingPower: Number(validator.votingPower) / 10000,
-        commissionRate: Number(validator.commissionRate) / 10000,
-        totalStakeRewards: Number(validator.totalStakeRewards) / 10 ** 9,
-        totalStake: (Number(validator.totalStake) / 10 ** 9),
-        active: validator.active,
-        id: validator.id
+        address: result.address.address,
+        stakingPoolActivationEpoch: result.stakingPoolActivationEpoch,
+        stakingPoolSuiBalance: Number(result.stakingPoolSuiBalance) / 10 ** 9,
+        rewardsPool: Number(result.rewardsPool) / 10 ** 9,
+        votingPower: Number(result.votingPower) / 10000,
+        commissionRate: Number(result.commissionRate) / 10000,
+        totalStakeRewards: Number(result.totalStakeRewards) / 10 ** 9,
+        totalStake: (Number(result.totalStake) / 10 ** 9),
+        active: result.active,
+        id: result.id
       }
-      const epoch_value = (1 - record.commissionRate) * record.totalStakeRewards / record.totalStake;
-      epoch_values.push(epoch_value);
+      specific_data.push(record)
+    })
+  })();
+  (async () => {
+    specific_data.map((result) => {
+      const epoch_value = (1 - result.commissionRate) * result.totalStakeRewards / result.totalStake;
+      epoch_values.push(epoch_value)
+    })
+  })();
+  (async () => {
+    specific_data.map((data, index) => {
       const reward = {
-        validator: record.address,
-        epoch: record.id,
-        earned: Number(get_reward(records[v_index].suiLocked, index, epoch_values)),
-        active: record.active
-      };
-      rewards.push(reward);
+        validator: data.address,
+        epoch: data.id,
+        earned: Number(get_reward_func(records[v_index].suiLocked, index, epoch_values)),
+        active: data.active
+      }
+      rewards.push(reward)
     })
     await csvWriter_validator.writeRecords(rewards);
   })();
@@ -213,4 +227,4 @@ async function writeCSV(delegator) {
 }
 
 // Call the writeCSV function
-writeCSV("0x571bad7fd728af0fb5589888e8124214467ae3ba7947cff39dea9d0638e5979a");
+writeCSV("0x20cf5fa56a83655a276e37fbe8b067ab04dcfe54119e92ed39461c3d7d0b4665");
